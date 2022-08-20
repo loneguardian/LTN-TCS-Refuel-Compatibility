@@ -1,9 +1,9 @@
 {
-    "name": "TCS-LTN-Bridge",
+    "name": "LTN-TCS-Refuel",
     "version": "0.0.3",
-    "title": "TCS LTN Bridge",
+    "title": "LTN TCS Refuel Compatibility Mod",
     "author": "Xeraph",
     "factorio_version": "1.1",
-    "dependencies": ["base >= 1.1", "Train_Control_Signals >= 1.0.6", "LogisticTrainNetwork >= 1.16.10", "xeraph-profiler"],
-    "description": "Adds a station in LTN schedules that can be used by TCS for refuelling"
+    "dependencies": ["base >= 1.1", "Train_Control_Signals >= 1.0.6", "LogisticTrainNetwork >= 1.16.10"],
+    "description": "Adds a station in LTN schedules that can be used by TCS for train refuelling"
   }

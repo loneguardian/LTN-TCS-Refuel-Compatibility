@@ -1,10 +1,6 @@
 -- debug detection
 local debug = (__DebugAdapter and true) or false
 
--- profiler
-local rcall = remote.call
-local trainById
-
 -- require
 local util = require "util"
 
@@ -15,8 +11,10 @@ local table = {
 }
 
 -- local variables
-local setting_refuel_station_name = settings.global["tcsltn-refuel-station-name"].value
-local setting_refuel_station_inactivity_condition_timeout = settings.global["tcsltn-refuel-station-inactivity-condition-timeout"].value * 60
+local setting_refuel_station_name = settings.global["ltntcsr-refuel-station-name"].value
+local setting_refuel_station_inactivity_condition_timeout = settings.global["ltntcsr-refuel-station-inactivity-condition-timeout"].value * 60
+
+local trainById
 
 local wait_condition = {
     compare_type = "and",
@@ -71,8 +69,6 @@ local function on_delivery_pickup_complete(event)
     -- insert new stop for train announcing delivery_pickup_complete
     local t = trainById[event.train_id]
 
-    rcall("xeraph-profiler", "stop")
-
     if t.valid then
         local sch = table.deepcopy(t.schedule)
         
@@ -87,10 +83,10 @@ local function on_setting_changed(event)
 
     if settingName == "ltn-dispatcher-requester-delivery-reset" then
         checkLtnSetting()
-    elseif settingName == "tcsltn-refuel-station-name" then
+    elseif settingName == "ltntcsr-refuel-station-name" then
         setting_refuel_station_name = settings.global[settingName].value
         refuel_station_record.station = setting_refuel_station_name
-    elseif settingName == "tcsltn-refuel-station-inactivity-condition-timeout" then
+    elseif settingName == "ltntcsr-refuel-station-inactivity-condition-timeout" then
         setting_refuel_station_inactivity_condition_timeout = settings.global[settingName].value * 60
         wait_condition.ticks = setting_refuel_station_inactivity_condition_timeout
     end
