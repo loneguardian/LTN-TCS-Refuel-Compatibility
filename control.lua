@@ -1,9 +1,9 @@
--- parameters (to be changed to settings)
-local setting_refuel_station_name = "TestStation [virtual-signal=refuel-signal]"
-local setting_refuel_station_inactivity_condition_timeout = 300 -- ticks
-
 -- debug detection
 local debug = (__DebugAdapter and true) or false
+
+-- profiler
+local rcall = remote.call
+local trainById
 
 -- require
 local util = require "util"
@@ -14,11 +14,9 @@ local table = {
     insert = table.insert
 }
 
--- event IDs
-local on_train_created = defines.events.on_train_created
-
 -- local variables
-local trainById -- global - key: "unique" train ID, value: LuaTrain object
+local setting_refuel_station_name = settings.global["tcsltn-refuel-station-name"].value
+local setting_refuel_station_inactivity_condition_timeout = settings.global["tcsltn-refuel-station-inactivity-condition-timeout"].value * 60
 
 local wait_condition = {
     compare_type = "and",
@@ -32,64 +30,48 @@ local refuel_station_record = {
 }
 
 -- local functions
-local function initialiseTrainById()
-    global.trainById = {}
+local function checkLtnSetting()
+    local s = settings.global["ltn-dispatcher-requester-delivery-reset"]
 
-    trainById = global.trainById
+    local isResetAtRequester = s.value
+    local settingName = game.mod_setting_prototypes["ltn-dispatcher-requester-delivery-reset"].localised_name
 
-    local trainArray
+    if debug then print("LTN setting isResetAtRequester:", isResetAtRequester) end
 
-    for _, f in pairs(game.forces) do
-        trainArray = f.get_trains()
-
-        for _, t in ipairs(trainArray) do
-            trainById[t.id] = t
-        end
-
+    if isResetAtRequester then
+        game.print({"console-message.ltn-setting-warning", settingName})
     end
-
-    if debug then print("updateTrainById(): initialised train dictionary") end
 end
 
-local function updateTrainById(event)
-    if not event then return end
-        
-    if event.name == on_train_created then
-        -- update trainById dictionary
-        -- clear old IDs in dictionary
-        if event.old_train_id_1 then trainById[event.old_train_id_1] = nil end
-        if event.old_train_id_2 then trainById[event.old_train_id_2] = nil end
+local function updateTrainById()
+    local t
+    
+    trainById = {}
 
-        -- create new entry
-        trainById[event.train.id] = event.train
+    for _, f in pairs(game.forces) do
+        t = f.get_trains()
 
-        if debug then
-            print(
-                "updateTrainById(): by on_train_created. Old IDs:",
-                event.old_train_id_1,
-                event.old_train_id_2,
-                "New ID",
-                event.train.id
-            )
+        for i = 1, #t do
+            trainById[t[i].id] = t[i]
         end
     end
-
-    -- TODO: to handle train ID that got deleted? (currently not necessary but probably good if we can find an event to remove invalid trains)
 end
 
 -- handlers
 local function on_configuration_changed(event)
-    -- remove obsolete globals
-    global.getDeliveryStart = nil
-    
-    initialiseTrainById()
+    updateTrainById()
+    checkLtnSetting()
 end
 
 local function on_delivery_pickup_complete(event)
     if debug then print("on_delivery_pickup_complete():", event.tick, "pickup complete", event.train_id) end
 
+    if not trainById then updateTrainById() end
+
     -- insert new stop for train announcing delivery_pickup_complete
-    local t = event.train_id and trainById[event.train_id]
+    local t = trainById[event.train_id]
+
+    rcall("xeraph-profiler", "stop")
 
     if t.valid then
         local sch = table.deepcopy(t.schedule)
@@ -100,29 +82,37 @@ local function on_delivery_pickup_complete(event)
     end
 end
 
-local function on_train_created(event)
-    updateTrainById(event)
+local function on_setting_changed(event)
+    local settingName = event.setting
+
+    if settingName == "ltn-dispatcher-requester-delivery-reset" then
+        checkLtnSetting()
+    elseif settingName == "tcsltn-refuel-station-name" then
+        setting_refuel_station_name = settings.global[settingName].value
+        refuel_station_record.station = setting_refuel_station_name
+    elseif settingName == "tcsltn-refuel-station-inactivity-condition-timeout" then
+        setting_refuel_station_inactivity_condition_timeout = settings.global[settingName].value * 60
+        wait_condition.ticks = setting_refuel_station_inactivity_condition_timeout
+    end
 end
 
-local function registerEvents()
-    script.on_configuration_changed(on_configuration_changed)
+-- register handlers
+script.on_configuration_changed(on_configuration_changed)
+script.on_event(defines.events["on_runtime_mod_setting_changed"], on_setting_changed)
 
-    script.on_event(defines.events.on_train_created, on_train_created)
-
+local function registerCondEvents()
     if remote.interfaces["logistic-train-network"] then
         script.on_event(remote.call("logistic-train-network", "on_delivery_pickup_complete"), on_delivery_pickup_complete)
     end
 end
 
 script.on_load(function ()
-    registerEvents()
-
-    -- localise globals
-    trainById = global.trainById
+    registerCondEvents()
 end)
 
+-- init
 script.on_init(function ()
-    registerEvents()
-
-    initialiseTrainById()
+    registerCondEvents()
+    updateTrainById()
+    checkLtnSetting()
 end)
