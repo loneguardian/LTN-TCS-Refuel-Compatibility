@@ -4,6 +4,6 @@
     "title": "TCS LTN Bridge",
     "author": "Xeraph",
     "factorio_version": "1.1",
-    "dependencies": ["base >= 1.1", "Train_Control_Signals >= 1.0.6", "LogisticTrainNetwork >= 1.16.10"],
+    "dependencies": ["base >= 1.1", "Train_Control_Signals >= 1.0.6", "LogisticTrainNetwork >= 1.16.10", "xeraph-profiler"],
     "description": "Adds a station in LTN schedules that can be used by TCS for refuelling"
   }

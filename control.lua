@@ -1,6 +1,10 @@
 -- debug detection
 local debug = (__DebugAdapter and true) or false
 
+-- profiler
+local rcall = remote.call
+local trainById
+
 -- require
 local util = require "util"
 
@@ -32,23 +36,42 @@ local function checkLtnSetting()
     local isResetAtRequester = s.value
     local settingName = game.mod_setting_prototypes["ltn-dispatcher-requester-delivery-reset"].localised_name
 
-    if debug then print("LTN setting", settingName, isResetAtRequester) end
+    if debug then print("LTN setting isResetAtRequester:", isResetAtRequester) end
 
     if isResetAtRequester then
         game.print({"console-message.ltn-setting-warning", settingName})
     end
 end
 
+local function updateTrainById()
+    local t
+    
+    trainById = {}
+
+    for _, f in pairs(game.forces) do
+        t = f.get_trains()
+
+        for i = 1, #t do
+            trainById[t[i].id] = t[i]
+        end
+    end
+end
+
 -- handlers
 local function on_configuration_changed(event)
+    updateTrainById()
     checkLtnSetting()
 end
 
 local function on_delivery_pickup_complete(event)
-    if debug then print("on_delivery_pickup_complete():", event.tick, "pickup complete", event.train_id) end --test
+    if debug then print("on_delivery_pickup_complete():", event.tick, "pickup complete", event.train_id) end
+
+    if not trainById then updateTrainById() end
 
     -- insert new stop for train announcing delivery_pickup_complete
-    local t = event.train
+    local t = trainById[event.train_id]
+
+    rcall("xeraph-profiler", "stop")
 
     if t.valid then
         local sch = table.deepcopy(t.schedule)
@@ -90,5 +113,6 @@ end)
 -- init
 script.on_init(function ()
     registerCondEvents()
+    updateTrainById()
     checkLtnSetting()
 end)
