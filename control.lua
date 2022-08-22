@@ -159,10 +159,11 @@ script.on_init(function ()
     checkLtnSetting()
 end)
 
--- interface to initialise train lookup table, use only if needed
+-- interface
 remote.add_interface("ltn-tcs-refuel",
     {
-        --/c remote.call("ltn-tcs-refuel", "initTrainById")
+        -- initialise train lookup table, use only if needed
+        -- /c remote.call("ltn-tcs-refuel", "initTrainById")
         initTrainById = initTrainById
     }
 )
