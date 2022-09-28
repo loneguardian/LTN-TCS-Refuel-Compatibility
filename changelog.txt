@@ -1,9 +1,18 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.1.1
-Date: ????
-  Changes:
+Version: 0.2.0
+Date: 2022-09-28
+  Info:
+    - Now requires LTN version >= 1.17.0
+  Control:
+    - Now uses the LuaTrain object provided by LTN's on_delivery_pickup_completed event (1.17.0)
+    - Depreciated event handling and lookup table for LuaTrain object
+  Other:
+    - Added thumbnail.png
+    - Minor README.md changes
+  Locale:
+    - Minor tooltip changes
 ---------------------------------------------------------------------------------------------------
 Version: 0.1.0
 Date: 2022-08-20
   Info:
-    - first release
+    - First release
