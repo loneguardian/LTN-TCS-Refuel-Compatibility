@@ -1,17 +1,18 @@
 LTN: [Logistic Train Network](https://mods.factorio.com/mods/Optera/LogisticTrainNetwork)
 
+[Cybersyn](https://mods.factorio.com/mod/cybersyn)
+
 TCS: [Train Control Signals](https://mods.factorio.com/mod/Train_Control_Signals)
 
-If you do not know either of the mods above, then this mod is not for you.
-
-Are you an LTN user but wishes to implement a separate centralised refuel station using TCS? This mod addresses that.
+Are you an LTN/Cybersyn user but wishes to implement a separate centralised refuel station using TCS? This mod addresses that.
 
 ## What this mod DOES?
-- Adds an additional stop to the end of the schedule of an LTN train after delivery pickup is complete. The stop name contains the TCS Refuel station virtual signal by default.
+- Adds an additional stop to the end of the modded train schedule after dispatch (Cybersyn) / delivery pickup is complete (LTN). The stop name contains the TCS Refuel station virtual signal by default where TCS will redirect the train to the refuel stop if the fuel runs low.
 
 ## Additional instructions
 - Station name and inactivity timeout can be configured through mod settings (under Map tab).
-- Make sure that the LTN setting - "Delivery completes at requester" is disabled.
+- LTN User: Make sure the setting - "Delivery completes at requester" is disabled.
+- Cybersyn User: Make sure the "Depot Bypass Threshold" setting is set at 1.
 
 ## What this mod DOES NOT DO?
 - DOES NOT change any refuel behaviours of train.
