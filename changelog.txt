@@ -1,7 +1,8 @@
 ---------------------------------------------------------------------------------------------------
-Version: 0.2.1
-Date: ????
-  Changes:
+Version: 0.3.0
+Date: 2022-12-04
+  Features:
+    - Added compatibility for Cybersyn, you can now choose to enable/disable the adding of refuel stop per-mod (LTN/Cybersyn)
 ---------------------------------------------------------------------------------------------------
 Version: 0.2.0
 Date: 2022-09-28

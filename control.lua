@@ -1,23 +1,14 @@
--- debug detection
-local debug = (__DebugAdapter and true) or false
-
--- require
-local util = require "util"
-
-local table = {
-    deepcopy = util.table.deepcopy,
-    insert = table.insert
-}
-
--- local variables
+-- settings
+local enabled_for_ltn = settings.global["ltntcsr-enable-for-ltn"].value
+local enabled_for_cybersyn = settings.global["ltntcsr-enable-for-cybersyn"].value
 local setting_refuel_station_name = settings.global["ltntcsr-refuel-station-name"].value
 local setting_refuel_station_inactivity_condition_timeout = settings.global["ltntcsr-refuel-station-inactivity-condition-timeout"].value * 60
 
-local schedule
+-- refuel stop record
 local refuel_station_record = {
     station = setting_refuel_station_name,
     wait_conditions = {
-        {   
+        {
             compare_type = "and",
             type = "inactivity",
             ticks = setting_refuel_station_inactivity_condition_timeout
@@ -25,65 +16,114 @@ local refuel_station_record = {
     }
 }
 
--- local functions
-local function checkLtnSetting()
-    if settings.global["ltn-dispatcher-requester-delivery-reset"].value then
-        game.print({"console-message.ltn-setting-warning", game.mod_setting_prototypes["ltn-dispatcher-requester-delivery-reset"].localised_name})
+-- check setting
+local function check_ltn_setting()
+    local key = "ltn-dispatcher-requester-delivery-reset"
+    if settings.global[key].value then
+        game.print({"console-message.ltn-setting-warning", game.mod_setting_prototypes[key].localised_name})
     end
 end
+
+local function check_cybersyn_setting()
+    local key = "cybersyn-depot-bypass-threshold"
+    local value = settings.global[key].value
+    if value and value < 1 then
+        game.print({"console-message.cybersyn-setting-warning", game.mod_setting_prototypes[key].localised_name})
+    end
+end
+
 
 -- handlers
 local function on_configuration_changed()
     -- remove trainById (0.2.0)
     if global.trainById then global.trainById = nil end
 
-    checkLtnSetting()
+    if enabled_for_ltn and script.active_mods["logistic-train-network"] then check_ltn_setting() end
+    if enabled_for_cybersyn and script.active_mods["cybersyn"] then check_cybersyn_setting() end
 end
 
-local function on_delivery_pickup_complete(event)
+local train, schedule, records
+
+local function add_refuel_stop()
+    schedule = train.schedule
+    records = schedule.records
+    records[#records+1] = refuel_station_record
+    train.schedule = schedule
+end
+
+local function on_ltn_delivery_pickup_complete(event)
     -- insert new stop for train announcing delivery_pickup_complete
-    local t = event.train
-
-    if t.valid then
-        schedule = table.deepcopy(t.schedule)
-        
-        table.insert(schedule.records, refuel_station_record)
-
-        t.schedule = schedule
+    train = event.train
+    if train.valid then
+        add_refuel_stop()
     end
 end
+
+local cybersyn_train
+local function cybersyn_get_train(train_id)
+    cybersyn_train = remote.call("cybersyn", "get_train", train_id)
+    if cybersyn_train then return cybersyn_train.entity end
+end
+
+local function on_cybersyn_train_dispatched(event)
+    train = cybersyn_get_train(event.train_id)
+    if train and train.valid then
+        add_refuel_stop()
+    end
+end
+
+local function register_remote_events()
+    if remote.interfaces["logistic-train-network"] then
+        script.on_event(remote.call("logistic-train-network", "on_delivery_pickup_complete"), enabled_for_ltn and on_ltn_delivery_pickup_complete or nil)
+    end
+    if remote.interfaces["cybersyn"] then
+        script.on_event(remote.call("cybersyn", "get_on_train_dispatched"), enabled_for_cybersyn and on_cybersyn_train_dispatched or nil)
+    end
+end
+
+local setting_handler = {
+    ["ltntcsr-enable-for-ltn"] = function(setting_name)
+        enabled_for_ltn = settings.global[setting_name].value
+        register_remote_events()
+    end,
+    ["ltntcsr-enable-for-cybersyn"] = function(setting_name)
+        enabled_for_cybersyn = settings.global[setting_name].value
+        register_remote_events()
+    end,
+    ["ltn-dispatcher-requester-delivery-reset"] = function()
+        check_ltn_setting()
+    end,
+    ["cybersyn-depot-bypass-threshold"] = function()
+        check_cybersyn_setting()
+    end,
+    ["ltntcsr-refuel-station-name"] = function(setting_name)
+        setting_refuel_station_name = settings.global[setting_name].value
+        refuel_station_record.station = setting_refuel_station_name
+    end,
+    ["ltntcsr-refuel-station-inactivity-condition-timeout"] = function(setting_name)
+        setting_refuel_station_inactivity_condition_timeout = settings.global[setting_name].value * 60
+        refuel_station_record.wait_conditions[1].ticks = setting_refuel_station_inactivity_condition_timeout
+    end,
+}
 
 local function on_setting_changed(event)
-    local settingName = event.setting
-
-    if settingName == "ltn-dispatcher-requester-delivery-reset" then
-        checkLtnSetting()
-    elseif settingName == "ltntcsr-refuel-station-name" then
-        setting_refuel_station_name = settings.global[settingName].value
-        refuel_station_record.station = setting_refuel_station_name
-    elseif settingName == "ltntcsr-refuel-station-inactivity-condition-timeout" then
-        setting_refuel_station_inactivity_condition_timeout = settings.global[settingName].value * 60
-        refuel_station_record.wait_conditions[1].ticks = setting_refuel_station_inactivity_condition_timeout
-    end
+    local setting_name = event.setting
+    local handler = setting_handler[event.setting]
+    if handler then handler(setting_name) end
 end
 
 -- register handlers
-script.on_event(defines.events["on_runtime_mod_setting_changed"], on_setting_changed)
-
-local function registerCondEvents()
-    if remote.interfaces["logistic-train-network"] then
-        script.on_event(remote.call("logistic-train-network", "on_delivery_pickup_complete"), on_delivery_pickup_complete)
-    end
-end
+script.on_event(defines.events.on_runtime_mod_setting_changed, on_setting_changed)
 
 script.on_configuration_changed(on_configuration_changed)
 
 script.on_load(function ()
-    registerCondEvents()
+    register_remote_events()
 end)
 
 -- init
 script.on_init(function ()
-    registerCondEvents()
-    checkLtnSetting()
+    register_remote_events()
+    if script.active_mods["logistic-train-network"] then check_ltn_setting() end
+    if script.active_mods["cybersyn"] then check_cybersyn_setting() end
 end)
