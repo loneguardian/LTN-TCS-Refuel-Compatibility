@@ -32,17 +32,23 @@ local function check_cybersyn_setting()
     end
 end
 
+local function init_globals()
+    global.trains_in_refuel_stop = global.trains_in_refuel_stop or {}
+end
 
 -- handlers
 local function on_configuration_changed()
     -- remove trainById (0.2.0)
     if global.trainById then global.trainById = nil end
 
+    init_globals()
+
     if enabled_for_ltn and script.active_mods["logistic-train-network"] then check_ltn_setting() end
     if enabled_for_cybersyn and script.active_mods["cybersyn"] then check_cybersyn_setting() end
 end
 
-local train, schedule, records
+-- upvalues
+local train, train_id, station, schedule, records
 
 local function add_refuel_stop()
     schedule = train.schedule
@@ -60,15 +66,33 @@ local function on_ltn_delivery_pickup_complete(event)
 end
 
 local cybersyn_train
-local function cybersyn_get_train(train_id)
-    cybersyn_train = remote.call("cybersyn", "get_train", train_id)
-    if cybersyn_train then return cybersyn_train.entity end
-end
-
 local function on_cybersyn_train_dispatched(event)
-    train = cybersyn_get_train(event.train_id)
+    train_id = event.train_id
+    cybersyn_train = remote.call("cybersyn", "get_train", train_id)
+    if not cybersyn_train then return end
+    train = cybersyn_train.entity
     if train and train.valid then
         add_refuel_stop()
+    end
+end
+
+---@param event EventData.on_train_changed_state
+local function on_train_changed_state(event)
+    if event.old_state == defines.train_state.arrive_station then -- train is wait_station?
+        train = event.train
+        station = train.station
+        if station and station.backer_name == setting_refuel_station_name then
+            -- store train in global
+            global.trains_in_refuel_stop[train.id] = true
+        end
+    elseif event.old_state == defines.train_state.wait_station then -- train is on_the_path / something else
+        train = event.train
+        train_id = train.id
+        -- check if train was in refuel stop
+        if global.trains_in_refuel_stop[train_id] then
+            remote.call("cybersyn", "add_available_train", train_id)
+            global.trains_in_refuel_stop[train_id] = nil
+        end
     end
 end
 
@@ -77,6 +101,7 @@ local function register_remote_events()
         script.on_event(remote.call("logistic-train-network", "on_delivery_pickup_complete"), enabled_for_ltn and on_ltn_delivery_pickup_complete or nil)
     end
     if remote.interfaces["cybersyn"] then
+        script.on_event(defines.events.on_train_changed_state, enabled_for_cybersyn and on_train_changed_state or nil)
         script.on_event(remote.call("cybersyn", "get_on_train_dispatched"), enabled_for_cybersyn and on_cybersyn_train_dispatched or nil)
     end
 end
@@ -123,7 +148,9 @@ end)
 
 -- init
 script.on_init(function ()
+    init_globals()
     register_remote_events()
+
     if script.active_mods["logistic-train-network"] then check_ltn_setting() end
     if script.active_mods["cybersyn"] then check_cybersyn_setting() end
 end)
