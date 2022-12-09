@@ -4,6 +4,6 @@
     "title": "LTN/Cybersyn - TCS Refuel Compatibility Mod",
     "author": "Xeraph",
     "factorio_version": "1.1",
-    "dependencies": ["base >= 1.1", "Train_Control_Signals >= 1.0.6", "? LogisticTrainNetwork >= 1.17.0", "? cybersyn >= 1.0.8"],
+    "dependencies": ["base >= 1.1", "Train_Control_Signals >= 1.0.6", "? LogisticTrainNetwork >= 1.17.0", "? cybersyn >= 1.1.0"],
     "description": "Adds a stop in LTN/Cybersyn schedules that can be used by TCS for train refuelling"
   }

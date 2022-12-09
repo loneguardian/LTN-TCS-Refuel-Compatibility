@@ -1,7 +1,10 @@
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.2
-Date: ????
+Date: 2022-12-09
+  Bugfixes:
+    - Fixed crash due to changes in Cybersyn modding interface (https://mods.factorio.com/mod/LTN-TCS-Refuel/discussion/63925afce635ed8d5c1d6593)
   Changes:
+    - Changed dependency of Cybersyn to >= 1.1.0
 ---------------------------------------------------------------------------------------------------
 Version: 0.3.1
 Date: 2022-12-07

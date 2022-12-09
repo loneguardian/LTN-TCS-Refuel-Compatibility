@@ -25,7 +25,7 @@ local function check_ltn_setting()
 end
 
 local function check_cybersyn_setting()
-    local key = "cybersyn-depot-bypass-threshold"
+    local key = "cybersyn-fuel-threshold"
     local value = settings.global[key].value
     if value and value < 1 then
         game.print({"console-message.cybersyn-setting-warning", game.mod_setting_prototypes[key].localised_name})
@@ -47,7 +47,19 @@ local function on_ltn_delivery_pickup_complete(event)
 end
 
 local global_trains
-local function on_cybersyn_train_dispatched(event)
+local cybersyn_train_status = {
+    STATUS_D = 0,
+    STATUS_TO_P = 1,
+    STATUS_P = 2,
+    STATUS_TO_R = 3,
+    STATUS_R = 4,
+    STATUS_TO_D = 5,
+    STATUS_TO_D_BYPASS = 6,
+    STATUS_TO_F = 7,
+    STATUS_F = 8
+}
+local function on_cybersyn_train_status_changed(event)
+    if event.new_status ~= cybersyn_train_status.STATUS_TO_P then return end
     local cybersyn_train = remote.call("cybersyn", "get_train", event.train_id)
     if not cybersyn_train then return end
     local train_entity = cybersyn_train.entity
@@ -94,7 +106,7 @@ local function register_remote_events(arg)
     end
     if (arg == nil or arg == "cybersyn") and remote.interfaces["cybersyn"] then
         script.on_event(defines.events.on_train_changed_state, enabled_for_cybersyn and on_train_changed_state or nil)
-        script.on_event(remote.call("cybersyn", "get_on_train_dispatched"), enabled_for_cybersyn and on_cybersyn_train_dispatched or nil)
+        script.on_event(remote.call("cybersyn", "get_on_train_status_changed"), enabled_for_cybersyn and on_cybersyn_train_status_changed or nil)
     end
 end
 
@@ -110,7 +122,7 @@ local setting_handler = {
     ["ltn-dispatcher-requester-delivery-reset"] = function()
         check_ltn_setting()
     end,
-    ["cybersyn-depot-bypass-threshold"] = function()
+    ["cybersyn-fuel-threshold"] = function()
         check_cybersyn_setting()
     end,
     ["ltntcsr-refuel-station-name"] = function(setting_name)
